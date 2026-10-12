@@ -28,3 +28,9 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Windows builds
+Windows/**/bin/
+Windows/**/obj/
+Windows/dist/
+Windows/App/tessdata/*.traineddata

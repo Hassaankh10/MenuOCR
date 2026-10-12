@@ -1,0 +1,35 @@
+name: Windows
+on:
+  push:
+    paths: ['Windows/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['Windows/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check settings, shortcuts, selection and OCR ranking
+        run: dotnet run --project Windows/CoreChecks/CoreChecks.csproj -c Release
+      - name: Download verified English model
+        shell: pwsh
+        run: ./Windows/prepare-model.ps1
+      - name: Test actual native Tesseract OCR
+        shell: pwsh
+        run: dotnet run --project Windows/NativeSmoke/NativeSmoke.csproj -c Release -- "$PWD/Windows/App/tessdata"
+      - name: Build portable app and installer
+        shell: pwsh
+        run: ./Windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MenuOCR-Windows-x64
+          path: |
+            Windows/dist/MenuOCR-*.zip
+            Windows/dist/MenuOCR-*-Setup.exe
+          if-no-files-found: error
