@@ -41,7 +41,7 @@ struct MenuOCRApp: App {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var item: NSStatusItem!
     let hotKey = HotKey()
     let feedback = Feedback()
@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var lastImage: Data?
     var settingsWindow: NSWindow?
     var onboardingWindow: NSWindow?
+    var onboardingDefaults = UserDefaults.standard
     var permissionWindow: NSWindow?
     var shortcutKey = UserDefaults.standard.object(forKey: "key") as? UInt32 ?? UInt32(kVK_ANSI_O)
     var shortcutModifiers = UserDefaults.standard.object(forKey: "modifiers") as? UInt32 ?? UInt32(cmdKey | shiftKey)
@@ -62,11 +63,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKey.action = { [weak self] in self?.capture() }
         if !hotKey.register(key: shortcutKey, modifiers: shortcutModifiers) { status = "Shortcut unavailable — change it in Settings" }
         refresh()
-        if !UserDefaults.standard.bool(forKey: "onboardingCompleted") { onboarding() }
+        if !onboardingDefaults.bool(forKey: "onboardingCompleted") { onboarding() }
         else if !CGPreflightScreenCaptureAccess() {
             status = "Screen Recording needs to be enabled for this build"
             refresh()
-            permission()
         }
     }
     func refresh() {
@@ -202,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if onboardingWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 570), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
             window.title = "Welcome to MenuOCR"
+            window.delegate = self
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
@@ -209,8 +210,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingWindow = window
         }
         NSApp.activate(ignoringOtherApps: true)
+        NSApp.setActivationPolicy(.regular)
         onboardingWindow?.contentView = NSHostingView(rootView: OnboardingView(delegate: self))
         onboardingWindow?.makeKeyAndOrderFront(nil)
+    }
+    func finishOnboarding(capture: Bool) {
+        onboardingDefaults.set(true, forKey: "onboardingCompleted")
+        onboardingWindow?.close()
+        settingsWindow?.close()
+        permissionWindow?.close()
+        NSApp.setActivationPolicy(.accessory)
+        if capture { self.capture() }
+    }
+    func windowWillClose(_ notification: Notification) {
+        if let window = notification.object as? NSWindow, window === onboardingWindow {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
     @objc func settings() {
         if settingsWindow == nil {

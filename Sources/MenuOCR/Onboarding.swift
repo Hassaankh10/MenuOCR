@@ -134,8 +134,6 @@ struct OnboardingView: View {
     private func advance(_ delta: Int) { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { step = min(3, max(0, step + delta)) }; refresh() }
     private func next() { if step == 3 { finish(capture: true) } else { advance(1) } }
     private func finish(capture: Bool) {
-        UserDefaults.standard.set(true, forKey: "onboardingCompleted")
-        delegate.onboardingWindow?.close()
-        if capture { delegate.capture() }
+        delegate.finishOnboarding(capture: capture)
     }
 }
