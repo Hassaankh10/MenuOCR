@@ -4,6 +4,13 @@ A macOS menu-bar app that copies text from screenshots using local Tesseract OCR
 
 Requires an Apple Silicon Mac running macOS 13 or later.
 
+## Homebrew
+
+```sh
+brew tap Hassaankh10/menuocr
+brew install --cask menuocr
+```
+
 ## Build
 
 Install [Homebrew](https://brew.sh), then run:
