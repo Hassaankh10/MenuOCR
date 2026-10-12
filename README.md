@@ -32,7 +32,7 @@ cp -R dist/MenuOCR.app ~/Applications/
 open ~/Applications/MenuOCR.app
 ```
 
-Enable **Screen Recording** for MenuOCR in System Settings → Privacy & Security, then quit and reopen the app.
+Open **Screen Recording Permission…** from MenuOCR’s menu. Follow the setup panel to enable access; it checks automatically and offers **Relaunch MenuOCR** if needed. Accessibility permission is not required.
 
 Press **⌘⇧O**, select some text, and paste with **⌘V**. Change the shortcut from the menu-bar settings.
 
@@ -46,4 +46,18 @@ brew install tesseract-lang
 
 A prebuilt Apple Silicon app is available in [Releases](https://github.com/Hassaankh10/MenuOCR/releases/latest). It still requires `brew install tesseract`.
 
-Unzip it, move MenuOCR to Applications, and open it. The download is not notarized; if macOS blocks it, use **Open Anyway** in Privacy & Security or build it locally.
+Open the DMG and drag MenuOCR to Applications, or unzip the ZIP and move the app there. Then open MenuOCR. The download is not notarized; if macOS blocks it, use **Open Anyway** in Privacy & Security or build it locally.
+
+For builds that retain the same signing identity across updates:
+
+```sh
+SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build.sh
+```
+
+Use the same Developer ID certificate and bundle identifier for each release. Local ad-hoc builds may need Screen Recording permission again after updates.
+
+To create a DMG after building:
+
+```sh
+./make-dmg.sh
+```

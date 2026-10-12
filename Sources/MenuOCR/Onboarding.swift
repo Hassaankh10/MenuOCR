@@ -65,6 +65,9 @@ struct OnboardingView: View {
         .frame(width: 820, height: 570)
         .preferredColorScheme(.light)
         .onAppear { refresh() }
+        .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
+            if step == 1 || step == 3 { refresh() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in refresh() }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in shortcut = delegate.shortcutDescription }
     }
@@ -80,6 +83,7 @@ struct OnboardingView: View {
                 }.padding(22).background(.white.opacity(0.75), in: RoundedRectangle(cornerRadius: 24)).rotationEffect(.degrees(-3))
             }
         } else if step == 1 {
+            ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 setupRow("Local OCR engine", detail: engineInstalled ? "Tesseract is installed." : "Install once with Homebrew.", ready: engineInstalled)
                 if !engineInstalled {
@@ -92,13 +96,9 @@ struct OnboardingView: View {
                     Link("Homebrew installation guide ↗", destination: URL(string: "https://brew.sh")!)
                 }
                 Divider()
-                setupRow("Screen Recording", detail: screenAllowed ? "Permission is enabled." : "Allows you to capture the region you select. No continuous recording.", ready: screenAllowed)
-                if !screenAllowed {
-                    Button("Enable Screen Recording") { _ = CGRequestScreenCaptureAccess(); delegate.permission() }
-                    Text("After enabling access, macOS may require you to quit and reopen MenuOCR.").font(.caption).foregroundStyle(ink.opacity(0.7))
-                }
-                Button("Check again") { refresh() }
-            }.font(.system(size: 12)).padding(24).background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 24))
+                PermissionSetupView(delegate: delegate)
+            }.font(.system(size: 12)).padding(24)
+            }.frame(maxHeight: 360).background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 24))
         } else if step == 2 {
             VStack(spacing: 24) {
                 Image(systemName: "command").font(.system(size: 42, weight: .light)).foregroundStyle(purple).accessibilityHidden(true)

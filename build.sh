@@ -19,13 +19,20 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIconFile</key><string>MenuOCR.icns</string>
 <key>CFBundleName</key><string>MenuOCR</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.2.2</string>
-<key>CFBundleVersion</key><string>5</string>
+<key>CFBundleShortVersionString</key><string>1.3.0</string>
+<key>CFBundleVersion</key><string>6</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
 xattr -cr "$APP"
-codesign --force --sign "${SIGN_IDENTITY:--}" "$APP"
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+    codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp "$APP"
+else
+    codesign --force --sign - "$APP"
+    echo "Local ad-hoc build: updated builds may need Screen Recording permission again."
+    echo "For distribution, set SIGN_IDENTITY to your Developer ID Application identity."
+fi
+codesign --verify --strict "$APP"
 echo "Built $APP"

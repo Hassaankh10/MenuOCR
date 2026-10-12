@@ -24,6 +24,10 @@ final class HotKey {
         reference = next
         return true
     }
+    func unregister() {
+        if let reference { UnregisterEventHotKey(reference) }
+        reference = nil
+    }
     deinit {
         if let reference { UnregisterEventHotKey(reference) }
         if let handler { RemoveEventHandler(handler) }
@@ -47,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var lastImage: Data?
     var settingsWindow: NSWindow?
     var onboardingWindow: NSWindow?
+    var permissionWindow: NSWindow?
     var shortcutKey = UserDefaults.standard.object(forKey: "key") as? UInt32 ?? UInt32(kVK_ANSI_O)
     var shortcutModifiers = UserDefaults.standard.object(forKey: "modifiers") as? UInt32 ?? UInt32(cmdKey | shiftKey)
 
@@ -58,6 +63,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !hotKey.register(key: shortcutKey, modifiers: shortcutModifiers) { status = "Shortcut unavailable — change it in Settings" }
         refresh()
         if !UserDefaults.standard.bool(forKey: "onboardingCompleted") { onboarding() }
+        else if !CGPreflightScreenCaptureAccess() {
+            status = "Screen Recording needs to be enabled for this build"
+            refresh()
+            permission()
+        }
     }
     func refresh() {
         item.button?.image = NSImage(systemSymbolName: job == nil ? "text.viewfinder" : "ellipsis.circle", accessibilityDescription: job == nil ? "MenuOCR" : "MenuOCR is working")
@@ -86,8 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         feedback.dismiss()
         captureScreen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
         guard CGPreflightScreenCaptureAccess() else {
-            _ = CGRequestScreenCaptureAccess()
-            status = "Enable Screen Recording, then quit and reopen MenuOCR"
+            status = "Screen Recording permission is needed to capture"
             refresh(); permission(); return
         }
         status = "Select a region; press Escape to cancel"; refresh()
@@ -157,7 +166,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
     }
     @objc func permission() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+        if permissionWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 460), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.title = "Allow MenuOCR to capture text"
+            window.isReleasedWhenClosed = false
+            window.contentView = NSHostingView(rootView: PermissionSetupView(delegate: self).padding(24).frame(width: 440))
+            window.center()
+            permissionWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        permissionWindow?.makeKeyAndOrderFront(nil)
+    }
+    func relaunch() {
+        guard job == nil else { return }
+        hotKey.unregister()
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        let app = self
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, error in
+            DispatchQueue.main.async {
+                if let error {
+                    _ = app.hotKey.register(key: app.shortcutKey, modifiers: app.shortcutModifiers)
+                    app.feedback.show(title: "Couldn’t relaunch MenuOCR", detail: error.localizedDescription, isError: true)
+                } else { NSApp.terminate(nil) }
+            }
+        }
     }
     @objc func quit() { job?.cancel(); NSApp.terminate(nil) }
     var shortcutDescription: String {
