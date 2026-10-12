@@ -1,0 +1,30 @@
+# Swift
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Generated applications
+dist/
+*.app
+*.dSYM
+*.ipa
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+
+# Local environment
+.env
+.env.*
+!.env.example
