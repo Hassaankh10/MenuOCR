@@ -47,7 +47,7 @@ final class Feedback {
     private func scheduleDismissal() {
         dismissal?.cancel()
         dismissal = Task { [weak self] in
-            do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
+            do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
             self?.dismiss()
         }
     }

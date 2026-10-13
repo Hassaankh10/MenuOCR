@@ -14,7 +14,7 @@ MenuOCR reads screenshots with local Tesseract OCR. It stays in your Mac’s men
 - **Choose how to copy.** The confirmation offers formatted or plain text. You can also re-copy the last result from the menu or a shortcut.
 - **Readable formatting.** Keep paragraphs, indentation and approximate text sizes. Original fonts, bold, italic and colors aren’t reconstructed.
 - **Multiple languages.** English is included. Add other Tesseract models; MenuOCR compares their recognition scores automatically.
-- **Quiet by default.** Setup opens on first launch. Afterward, the app stays in the menu bar or tray. Confirmations appear at the bottom center without taking focus.
+- **Quiet by default.** Setup opens on first launch. Afterward, the app stays in the menu bar or tray. Confirmations appear at the bottom center without taking focus, and close after three seconds even while hovered.
 - **Screenshot copying.** Copy the last captured image from the menu.
 
 ## Install

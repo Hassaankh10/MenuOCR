@@ -25,23 +25,24 @@ func verify() {
     }
     RunLoop.main.run(until: Date().addingTimeInterval(0.6))
     assert(panel.isVisible, "Confirmation should not dismiss early")
-    RunLoop.main.run(until: Date().addingTimeInterval(0.6))
-    assert(!panel.isVisible, "Success should dismiss after one second")
+    RunLoop.main.run(until: Date().addingTimeInterval(2.6))
+    assert(!panel.isVisible, "Success should dismiss after three seconds")
     feedback.show(title: "First", detail: "Old message")
     feedback.show(title: "Second", detail: "New message")
     assert(app.windows.filter { $0 is NSPanel && $0.isVisible }.count == 1)
     feedback.dismiss()
     assert(app.windows.filter { $0 is NSPanel && $0.isVisible }.isEmpty)
+    let interactiveFrontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
     feedback.show(title: "Plain text copied", detail: "128 characters · Paste with ⌘V", formatted: {}, plain: {})
     let interactive = app.windows.first { $0 is NSPanel && $0.isVisible }!
     assert(!interactive.ignoresMouseEvents && !interactive.isKeyWindow)
-    assert(NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmost)
+    assert(NSWorkspace.shared.frontmostApplication?.processIdentifier == interactiveFrontmost)
     if let view = interactive.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
         view.cacheDisplay(in: view.bounds, to: bitmap)
         try! bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
     }
-    RunLoop.main.run(until: Date().addingTimeInterval(1.2))
-    assert(!interactive.isVisible, "Interactive confirmation should dismiss after one second")
+    RunLoop.main.run(until: Date().addingTimeInterval(3.2))
+    assert(!interactive.isVisible, "Interactive confirmation should dismiss after three seconds")
     feedback.dismiss()
     let icon = NSImage(contentsOfFile: CommandLine.arguments[2])
     assert(icon != nil && icon!.isValid, "ICNS must decode")

@@ -25,7 +25,7 @@ internal sealed class ToastForm : Form
             Controls.AddRange([first,second]);
         }
         interactive = formatted != null;
-        timer.Interval = 1000; timer.Tick += (_, _) => Close();
+        timer.Interval = 3000; timer.Tick += (_, _) => Close();
     }
     protected override void OnShown(EventArgs e)
     {

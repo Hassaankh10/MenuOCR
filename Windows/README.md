@@ -3,7 +3,7 @@
 Windows 10/11, x64. Runs in the system tray after first-launch setup.
 
 Press **Ctrl + Shift + O**, select text, then paste with **Ctrl + V**.
-A confirmation appears at the bottom center of the selected screen, with **Copy formatted** and **Copy plain text** buttons.
+A confirmation appears at the bottom center of the selected screen, with **Copy formatted** and **Copy plain text** buttons. It closes after three seconds, even while hovered.
 
 Re-copy the last result with **Ctrl + Alt + Shift + C** (formatted) or
 **Ctrl + Alt + Shift + V** (plain). Change all three shortcuts in Settings.
