@@ -34,6 +34,16 @@ var thread = new Thread(() => {
         first.Unregister();
         if (!second.TryRegister(one)) throw new Exception("Released hotkey could not be reassigned.");
         Console.WriteLine("PASS native global shortcut conflicts, preservation and reassignment");
+        using var toast = new ToastForm("Copied", "One second check", false, Screen.PrimaryScreen!, () => {}, () => {});
+        using var watchdog = new System.Windows.Forms.Timer { Interval = 2500 };
+        watchdog.Tick += (_,_) => toast.Close();
+        toast.Shown += (_,_) => toast.BeginInvoke(new Action(() => {
+            // Drive the real MouseEnter event which previously stopped dismissal.
+            typeof(Control).GetMethod("OnMouseEnter", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(toast.Controls[0], [EventArgs.Empty]);
+        }));
+        var elapsed = System.Diagnostics.Stopwatch.StartNew(); watchdog.Start(); toast.ShowDialog(); watchdog.Stop();
+        if (elapsed.Elapsed.TotalSeconds < .9 || elapsed.Elapsed.TotalSeconds > 1.8) throw new Exception("Confirmation did not dismiss after one second while hovered.");
+        Console.WriteLine("PASS one-second confirmation dismissal while hovered");
     } catch (Exception error) { uiError = error; }
 });
 thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join();

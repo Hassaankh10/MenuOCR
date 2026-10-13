@@ -16,9 +16,7 @@ final class Feedback {
 
     func show(title: String, detail: String, isError: Bool = false, screen: NSScreen? = nil, formatted: (() -> Void)? = nil, plain: (() -> Void)? = nil) {
         dismiss()
-        let content = FeedbackView(title: title, detail: detail, isError: isError, formatted: formatted, plain: plain, hovering: { [weak self] inside in
-            if inside { self?.dismissal?.cancel() } else { self?.scheduleDismissal(seconds: 10) }
-        })
+        let content = FeedbackView(title: title, detail: detail, isError: isError, formatted: formatted, plain: plain)
         let view = NSHostingView(rootView: content)
         let size = view.fittingSize
         let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
@@ -44,12 +42,12 @@ final class Feedback {
             .announcement: "\(title). \(detail)",
             .priority: NSAccessibilityPriorityLevel.medium.rawValue
         ])
-        scheduleDismissal(seconds: formatted != nil || isError || NSWorkspace.shared.isVoiceOverEnabled ? 10 : 4)
+        scheduleDismissal()
     }
-    private func scheduleDismissal(seconds: UInt64) {
+    private func scheduleDismissal() {
         dismissal?.cancel()
         dismissal = Task { [weak self] in
-            do { try await Task.sleep(nanoseconds: seconds * 1_000_000_000) } catch { return }
+            do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
             self?.dismiss()
         }
     }
@@ -61,7 +59,6 @@ struct FeedbackView: View {
     let isError: Bool
     var formatted: (() -> Void)? = nil
     var plain: (() -> Void)? = nil
-    var hovering: (Bool) -> Void = { _ in }
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -90,7 +87,6 @@ struct FeedbackView: View {
             }
         }
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.12)))
-        .onHover(perform: hovering)
         .accessibilityElement(children: formatted == nil ? .combine : .contain)
     }
 }

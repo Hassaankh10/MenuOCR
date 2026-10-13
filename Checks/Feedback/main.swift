@@ -23,8 +23,10 @@ func verify() {
         view.cacheDisplay(in: view.bounds, to: bitmap)
         try! bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
     }
-    RunLoop.main.run(until: Date().addingTimeInterval(4.5))
-    assert(!panel.isVisible, "Success should automatically dismiss")
+    RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+    assert(panel.isVisible, "Confirmation should not dismiss early")
+    RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+    assert(!panel.isVisible, "Success should dismiss after one second")
     feedback.show(title: "First", detail: "Old message")
     feedback.show(title: "Second", detail: "New message")
     assert(app.windows.filter { $0 is NSPanel && $0.isVisible }.count == 1)
@@ -38,6 +40,8 @@ func verify() {
         view.cacheDisplay(in: view.bounds, to: bitmap)
         try! bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
     }
+    RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+    assert(!interactive.isVisible, "Interactive confirmation should dismiss after one second")
     feedback.dismiss()
     let icon = NSImage(contentsOfFile: CommandLine.arguments[2])
     assert(icon != nil && icon!.isValid, "ICNS must decode")

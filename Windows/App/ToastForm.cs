@@ -23,11 +23,9 @@ internal sealed class ToastForm : Form
             var first = Theme.Button("Copy formatted", (_,_) => formatted()); first.Location = new Point(20,100);
             var second = Theme.Button("Copy plain text", (_,_) => plain()); second.Location = new Point(195,100);
             Controls.AddRange([first,second]);
-            MouseEnter += (_,_) => timer.Stop(); MouseLeave += (_,_) => { if (!ClientRectangle.Contains(PointToClient(Cursor.Position))) timer.Start(); };
-            foreach (Control control in Controls) { control.MouseEnter += (_,_) => timer.Stop(); control.MouseLeave += (_,_) => { if (!ClientRectangle.Contains(PointToClient(Cursor.Position))) timer.Start(); }; }
         }
         interactive = formatted != null;
-        timer.Interval = error || interactive ? 10000 : 4000; timer.Tick += (_, _) => Close();
+        timer.Interval = 1000; timer.Tick += (_, _) => Close();
     }
     protected override void OnShown(EventArgs e)
     {
