@@ -95,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         add(menu, "Copy Plain Text", #selector(copyPlain), enabled: lastResult != nil && job == nil)
         add(menu, "Languages Folder…", #selector(languagesFolder))
         add(menu, "Cancel", #selector(cancel), enabled: job != nil)
-        add(menu, "Copy Last Screenshot", #selector(copyImage), enabled: lastImage != nil)
+        add(menu, "Copy Last Screenshot", #selector(copyImage), enabled: lastImage != nil && job == nil)
         menu.addItem(.separator())
         add(menu, "Show Last Result…", #selector(showLastResult))
         add(menu, "Settings…", #selector(settings))
@@ -287,7 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func settings() {
         if settingsWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 400), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 560), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             window.title = "MenuOCR Settings"; window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: Preferences(delegate: self))
             window.center(); settingsWindow = window
