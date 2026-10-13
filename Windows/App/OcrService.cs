@@ -33,6 +33,18 @@ public sealed class OcrService(params string[] dataDirectories)
                 using var engine = new TesseractEngine(directory, language, EngineMode.LstmOnly);
                 using var page = engine.Process(image, PageSegMode.Auto);
                 var text = page.GetText().Trim();
+                var lines = new List<OcrLine>();
+                int paragraph = 0;
+                using (var lineIterator = page.GetIterator()) {
+                    lineIterator.Begin();
+                    do {
+                        if (lineIterator.IsAtBeginningOf(PageIteratorLevel.Para)) paragraph++;
+                        var line = lineIterator.GetText(PageIteratorLevel.TextLine)?.Trim();
+                        if (!string.IsNullOrEmpty(line) && lineIterator.TryGetBoundingBox(PageIteratorLevel.TextLine, out var box))
+                            lines.Add(new(line, paragraph, box.X1, box.Height));
+                    } while (lineIterator.Next(PageIteratorLevel.TextLine));
+                }
+                if (lines.Count > 0) text = RichText.Plain(lines);
                 var words = new List<(string, float)>();
                 using var iterator = page.GetIterator();
                 iterator.Begin();
@@ -40,7 +52,7 @@ public sealed class OcrService(params string[] dataDirectories)
                     var word = iterator.GetText(PageIteratorLevel.Word);
                     if (word != null) words.Add((word, iterator.GetConfidence(PageIteratorLevel.Word)));
                 } while (iterator.Next(PageIteratorLevel.Word));
-                results.Add(new(text, language, OcrRanking.Score(words)));
+                results.Add(new OcrResult(text, language, OcrRanking.Score(words)) { Lines = lines });
             } catch (Exception error) when (error is not OperationCanceledException) {
                 failures.Add($"{language}: {error.GetBaseException().Message}");
             }

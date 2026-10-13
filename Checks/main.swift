@@ -24,3 +24,17 @@ try bitmap.representation(using: .png, properties: [:])!.write(to: file)
 let result = try OCR.recognize(file) { print($0) }
 check(result.text.contains("Hello world 123"), "Real OCR result: \(result.text)")
 print("PASS: TSV parsing, confidence, empty result, command failure, timeout, and real OCR/model selection (\(result.language)).")
+
+let structured = OCRResult(layout: [OCRLine(text: "Title", paragraph: "1", left: 0, height: 40), OCRLine(text: "Hello {world} café 中文", paragraph: "2", left: 20, height: 20)], text: "Title\n\nHello {world} café 中文", confidence: 90, language: "eng")
+let rich = structured.richText
+check(rich.string == structured.text, "Rich and plain content differ")
+let rtf = try rich.data(from: NSRange(location: 0, length: rich.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+let decoded = try NSAttributedString(data: rtf, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil)
+check(decoded.string == structured.text, "Unicode RTF round-trip")
+check((rich.attribute(.paragraphStyle, at: rich.length-1, effectiveRange: nil) as! NSParagraphStyle).headIndent > 0, "Indentation missing")
+if CommandLine.arguments.count == 3 {
+    let output = try Command.run(CommandLine.arguments[1], [file.path, "stdout", "--tessdata-dir", CommandLine.arguments[2], "-l", "eng", "tsv"])
+    check(OCRResult.parse(output, language: "eng").text.contains("Hello world 123"), "Bundled OCR failed")
+    print("PASS: bundled engine recognition with explicit bundled data")
+}
+print("PASS: rich/plain text equivalence, Unicode RTF round-trip and indentation")

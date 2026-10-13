@@ -21,18 +21,22 @@ public sealed class AppSettings
     public bool OnboardingCompleted { get; set; }
     public bool ShowCopyConfirmation { get; set; } = true;
     public Shortcut Shortcut { get; set; } = Shortcut.Default;
+    public Shortcut FormattedShortcut { get; set; } = new("C", ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift);
+    public Shortcut PlainShortcut { get; set; } = new("V", ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift);
+    public bool ShortcutsValid => Shortcut?.IsValid == true && FormattedShortcut?.IsValid == true && PlainShortcut?.IsValid == true
+        && Shortcut != FormattedShortcut && Shortcut != PlainShortcut && FormattedShortcut != PlainShortcut;
     public static AppSettings Load(string path)
     {
         if (!File.Exists(path)) return new();
         var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path))
             ?? throw new InvalidDataException("Settings are empty.");
-        if (settings.Shortcut == null || !settings.Shortcut.IsValid)
+        if (!settings.ShortcutsValid)
             throw new InvalidDataException("The saved shortcut is invalid.");
         return settings;
     }
     public void Save(string path)
     {
-        if (!Shortcut.IsValid) throw new InvalidDataException("Include Ctrl, Alt, or Win and a valid key.");
+        if (!ShortcutsValid) throw new InvalidDataException("Include Ctrl, Alt, or Win and a valid key.");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try {

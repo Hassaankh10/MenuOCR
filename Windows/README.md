@@ -3,7 +3,12 @@
 Windows 10/11, x64. Runs in the system tray after first-launch setup.
 
 Press **Ctrl + Shift + O**, select text, then paste with **Ctrl + V**.
-A confirmation appears at the bottom center of the selected screen.
+A confirmation appears at the bottom center of the selected screen, with **Copy formatted** and **Copy plain text** buttons.
+
+Re-copy the last result with **Ctrl + Alt + Shift + C** (formatted) or
+**Ctrl + Alt + Shift + V** (plain). Change all three shortcuts in Settings.
+Formatted copying preserves readable paragraphs, indentation and approximate
+text sizes, with a plain-text fallback. Original fonts and styling are not reconstructed.
 Change the shortcut or reopen setup from the tray menu.
 
 ## Install

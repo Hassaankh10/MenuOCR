@@ -28,6 +28,11 @@ internal sealed class HotkeyWindow : Form
         if (message.Msg == 0x0312 && message.WParam.ToInt32() == registeredId) Pressed?.Invoke(this, EventArgs.Empty);
         base.WndProc(ref message);
     }
+    public void Unregister()
+    {
+        if (registeredId.HasValue && IsHandleCreated) UnregisterHotKey(Handle,registeredId.Value);
+        registeredId = null; registeredShortcut = null;
+    }
     protected override void Dispose(bool disposing)
     {
         if (registeredId.HasValue && IsHandleCreated) UnregisterHotKey(Handle, registeredId.Value);

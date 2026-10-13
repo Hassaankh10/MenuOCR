@@ -7,6 +7,11 @@ namespace MenuOCR;
 internal sealed class TrayApp : ApplicationContext
 {
     private readonly HotkeyWindow hotkey = new();
+    private readonly HotkeyWindow formattedKey = new();
+    private readonly HotkeyWindow plainKey = new();
+    private OcrResult? lastResult;
+    private readonly ToolStripMenuItem formattedItem = new("Copy Formatted Text");
+    private readonly ToolStripMenuItem plainItem = new("Copy Plain Text");
     private readonly NotifyIcon tray;
     private readonly ContextMenuStrip menu = new();
     private readonly ToolStripMenuItem statusItem = new("Ready — capture a text region") { Enabled = false };
@@ -43,6 +48,9 @@ internal sealed class TrayApp : ApplicationContext
         imageItem.Click += (_, _) => CopyImage();
         settingsItem.Click += (_, _) => ShowSettings();
         menu.Items.AddRange([statusItem, captureItem, cancelItem, imageItem, new ToolStripSeparator(), settingsItem]);
+        formattedItem.Click += async (_,_) => await CopyResultAsync(true);
+        plainItem.Click += async (_,_) => await CopyResultAsync(false);
+        menu.Items.Insert(2,formattedItem); menu.Items.Insert(3,plainItem);
         menu.Items.Add("Welcome to MenuOCR…", null, (_, _) => ShowOnboarding());
         menu.Items.Add("Languages folder…", null, (_, _) => OpenLanguages());
         menu.Items.Add("OCR setup help…", null, (_, _) => OpenHelp());
@@ -51,6 +59,9 @@ internal sealed class TrayApp : ApplicationContext
         tray = new NotifyIcon { Icon = appIcon, Text = "MenuOCR", ContextMenuStrip = menu, Visible = true };
         tray.DoubleClick += async (_, _) => { if (!Settings.OnboardingCompleted) ShowOnboarding(); else await CaptureAsync(); };
         hotkey.Pressed += async (_, _) => await CaptureAsync();
+        formattedKey.Pressed += async (_,_) => await CopyResultAsync(true);
+        plainKey.Pressed += async (_,_) => await CopyResultAsync(false);
+        if (!(formattedKey.TryRegister(Settings.FormattedShortcut) & plainKey.TryRegister(Settings.PlainShortcut))) status = "Copy shortcut unavailable. Open Settings.";
         if (!hotkey.TryRegister(Settings.Shortcut)) SetStatus("Shortcut unavailable. Choose another in Settings.");
         else Refresh();
         if (settingsWarning != null) { SetStatus(settingsWarning); ShowToast("Settings need attention", "Open MenuOCR → Show Last Result for details.", true); }
@@ -61,6 +72,7 @@ internal sealed class TrayApp : ApplicationContext
     {
         statusItem.Text = status.Length > 160 ? status[..160] + "…" : status;
         tray.Text = ("MenuOCR: " + status).Replace('\n', ' ').Replace('\r', ' ')[..Math.Min(63, ("MenuOCR: " + status).Length)];
+        formattedItem.Enabled = plainItem.Enabled = lastResult != null && !busy;
         captureItem.Enabled = !busy; cancelItem.Enabled = busy; settingsItem.Enabled = !busy; imageItem.Enabled = lastImage != null && !busy;
     }
     private void OnUi(Action action)
@@ -93,21 +105,34 @@ internal sealed class TrayApp : ApplicationContext
             var bytes = png.ToArray();
             var result = await Task.Run(() => ocr.Recognize(bytes, token, message => OnUi(() => { if (busy && !token.IsCancellationRequested) SetStatus(message); })), token);
             token.ThrowIfCancellationRequested();
-            if (!await CopyTextAsync(result.Text, token)) throw new InvalidOperationException("Text was extracted but the clipboard is busy. Close apps holding the clipboard and capture again.");
-            SetStatus($"Copied {result.Text.Length} characters · {result.Language} · OCR score {result.Confidence:F0}%");
-            if (Settings.ShowCopyConfirmation) ShowToast("Text copied to clipboard", $"{result.Text.Length} characters · Paste with Ctrl + V", false, screen);
+            lastResult = result;
+            await CopyResultAsync(false, token, screen, allowBusy: true);
+
         } catch (OperationCanceledException) { SetStatus("Cancelled — clipboard unchanged"); }
         catch (Exception error) { SetStatus(error.Message); ShowToast("Couldn’t copy text", "Open MenuOCR → Show Last Result for details.", true, screen); }
         finally { overlay = null; busy = false; cancellation?.Dispose(); cancellation = null; Refresh(); }
     }
-    private static async Task<bool> CopyTextAsync(string text, CancellationToken token)
+    private async Task CopyResultAsync(bool formatted, CancellationToken token = default, Screen? screen = null, bool allowBusy = false)
     {
-        for (int attempt = 0; attempt < 5; attempt++) {
-            token.ThrowIfCancellationRequested();
-            try { Clipboard.SetText(text, TextDataFormat.UnicodeText); return true; }
-            catch (ExternalException) { await Task.Delay(100, token); }
-        }
-        return false;
+        if (busy && !allowBusy) return;
+        if (lastResult == null) { ShowToast("Capture text first", "Press your capture shortcut, then choose a copy mode."); return; }
+        var result = lastResult;
+        try {
+            var data = new DataObject(); data.SetData(DataFormats.UnicodeText, result.Text);
+            if (formatted) data.SetData(DataFormats.Rtf, result.Rtf);
+            bool copied = false;
+            for (int attempt = 0; attempt < 5; attempt++) {
+                token.ThrowIfCancellationRequested();
+                try { Clipboard.SetDataObject(data,true); copied = true; break; }
+                catch (ExternalException) { await Task.Delay(100,token); }
+            }
+            if (!copied) throw new InvalidOperationException("Clipboard is busy. Use a copy action to retry.");
+            SetStatus($"Copied {(formatted ? "formatted" : "plain")} text · {result.Language}");
+            if (Settings.ShowCopyConfirmation) {
+                toast?.Close(); toast = new ToastForm($"{(formatted ? "Formatted" : "Plain")} text copied", $"{result.Text.Length} characters · Paste with Ctrl + V", false, screen ?? Screen.FromPoint(Cursor.Position), async () => await CopyResultAsync(true), async () => await CopyResultAsync(false)); toast.Show();
+            }
+        } catch (OperationCanceledException) { throw; }
+        catch (Exception error) { SetStatus(error.Message); ShowToast("Couldn’t copy text", "Use the tray menu to retry.",true,screen); }
     }
     private void Cancel()
     {
@@ -131,16 +156,16 @@ internal sealed class TrayApp : ApplicationContext
         if (busy) return;
         using var form = new SettingsForm(Settings, SaveSettings); form.ShowDialog(owner);
     }
-    private string? SaveSettings(Shortcut shortcut, bool confirmation)
+    private string? SaveSettings(AppSettings replacement)
     {
         var old = Settings;
-        if (!hotkey.TryRegister(shortcut)) return "Shortcut unavailable. Choose a different combination.";
-        var replacement = new AppSettings { OnboardingCompleted = old.OnboardingCompleted, Shortcut = shortcut, ShowCopyConfirmation = confirmation };
-        try { replacement.Save(settingsPath); Settings = replacement; SetStatus("Ready — shortcut saved"); return null; }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException) {
-            if (!hotkey.TryRegister(old.Shortcut)) SetStatus("Couldn’t restore the old shortcut. Open Settings to choose another.");
-            return "Couldn’t save settings: " + error.Message;
-        }
+        // Release all three before registration so users can swap their assignments.
+        void Clear() { hotkey.Unregister(); formattedKey.Unregister(); plainKey.Unregister(); }
+        bool Register(AppSettings value) => hotkey.TryRegister(value.Shortcut) & formattedKey.TryRegister(value.FormattedShortcut) & plainKey.TryRegister(value.PlainShortcut);
+        Clear();
+        if (!Register(replacement)) { Clear(); if (!Register(old)) SetStatus("Couldn’t restore shortcuts. Open Settings."); return "Shortcut unavailable. Choose another combination."; }
+        try { replacement.Save(settingsPath); Settings = replacement; SetStatus("Ready — shortcuts saved"); return null; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { Clear(); if (!Register(old)) SetStatus("Couldn’t restore shortcuts. Open Settings."); return "Couldn’t save settings: " + error.Message; }
     }
     private void ShowOnboarding()
     {
@@ -173,7 +198,7 @@ internal sealed class TrayApp : ApplicationContext
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { exiting = true; cancellation?.Cancel(); hotkey.Dispose(); tray.Dispose(); menu.Dispose(); toast?.Dispose(); onboarding?.Dispose(); lastImage?.Dispose(); appIcon.Dispose(); }
+        if (disposing) { exiting = true; cancellation?.Cancel(); hotkey.Dispose(); formattedKey.Dispose(); plainKey.Dispose(); tray.Dispose(); menu.Dispose(); toast?.Dispose(); onboarding?.Dispose(); lastImage?.Dispose(); appIcon.Dispose(); }
         base.Dispose(disposing);
     }
 }

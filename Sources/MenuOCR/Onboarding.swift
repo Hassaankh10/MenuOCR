@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import AppKit
 import CoreGraphics
 
@@ -85,16 +86,8 @@ struct OnboardingView: View {
         } else if step == 1 {
             ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                setupRow("Local OCR engine", detail: engineInstalled ? "Tesseract is installed." : "Install once with Homebrew.", ready: engineInstalled)
-                if !engineInstalled {
-                    Text("brew install tesseract").font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
-                    Button("Copy install command") {
-                        NSPasteboard.general.clearContents()
-                        let copied = NSPasteboard.general.setString("brew install tesseract", forType: .string)
-                        delegate.feedback.show(title: copied ? "Install command copied" : "Couldn’t copy command", detail: copied ? "Paste into Terminal to install Tesseract." : "Select the command above and copy it manually.", isError: !copied)
-                    }
-                    Link("Homebrew installation guide ↗", destination: URL(string: "https://brew.sh")!)
-                }
+                setupRow("Local OCR engine", detail: engineInstalled ? "Tesseract is ready. OCR stays on this Mac." : "OCR engine missing. Reinstall MenuOCR.", ready: engineInstalled)
+                Button("Open languages folder") { delegate.languagesFolder() }
                 Divider()
                 PermissionSetupView(delegate: delegate)
             }.font(.system(size: 12)).padding(24)

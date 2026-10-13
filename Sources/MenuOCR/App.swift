@@ -7,18 +7,24 @@ final class HotKey {
     var reference: EventHotKeyRef?
     var handler: EventHandlerRef?
     var action: (() -> Void)?
+    private static var nextID: UInt32 = 0
+    let id: UInt32
     init() {
+        Self.nextID += 1; id = Self.nextID
         var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, context in
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, context in
             guard let context else { return noErr }
-            Unmanaged<HotKey>.fromOpaque(context).takeUnretainedValue().action?()
+            let hotkey = Unmanaged<HotKey>.fromOpaque(context).takeUnretainedValue()
+            var received = EventHotKeyID()
+            guard let event, GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &received) == noErr, received.id == hotkey.id else { return OSStatus(eventNotHandledErr) }
+            hotkey.action?()
             return noErr
         }, 1, &type, Unmanaged.passUnretained(self).toOpaque(), &handler)
     }
     func register(key: UInt32, modifiers: UInt32) -> Bool {
         // Register the replacement first so a conflict preserves the existing shortcut.
         var next: EventHotKeyRef?
-        let result = RegisterEventHotKey(key, modifiers, EventHotKeyID(signature: 0x4F43524D, id: 1), GetApplicationEventTarget(), 0, &next)
+        let result = RegisterEventHotKey(key, modifiers, EventHotKeyID(signature: 0x4F43524D, id: id), GetApplicationEventTarget(), 0, &next)
         guard result == noErr else { return false }
         if let reference { UnregisterEventHotKey(reference) }
         reference = next
@@ -44,6 +50,9 @@ struct MenuOCRApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var item: NSStatusItem!
     let hotKey = HotKey()
+    let formattedKey = HotKey()
+    let plainKey = HotKey()
+    var lastResult: OCRResult?
     let feedback = Feedback()
     var captureScreen: NSScreen?
     var status = "Ready — capture a text region"
@@ -62,6 +71,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         item.button?.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: "MenuOCR")
         hotKey.action = { [weak self] in self?.capture() }
         if !hotKey.register(key: shortcutKey, modifiers: shortcutModifiers) { status = "Shortcut unavailable — change it in Settings" }
+        formattedKey.action = { [weak self] in self?.copyFormatted() }
+        plainKey.action = { [weak self] in self?.copyPlain() }
+        for mode in ["formatted", "plain"] {
+            let shortcut = shortcutFor(mode)
+            if !keyFor(mode).register(key: shortcut.0, modifiers: shortcut.1) { status = "Copy shortcut unavailable — change it in Settings" }
+        }
         refresh()
         if !onboardingDefaults.bool(forKey: "onboardingCompleted") { onboarding() }
         else if !CGPreflightScreenCaptureAccess() {
@@ -76,6 +91,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let label = NSMenuItem(title: status, action: nil, keyEquivalent: "")
         label.isEnabled = false; menu.addItem(label)
         add(menu, "Capture Text", #selector(capture), enabled: job == nil)
+        add(menu, "Copy Formatted Text", #selector(copyFormatted), enabled: lastResult != nil && job == nil)
+        add(menu, "Copy Plain Text", #selector(copyPlain), enabled: lastResult != nil && job == nil)
+        add(menu, "Languages Folder…", #selector(languagesFolder))
         add(menu, "Cancel", #selector(cancel), enabled: job != nil)
         add(menu, "Copy Last Screenshot", #selector(copyImage), enabled: lastImage != nil)
         menu.addItem(.separator())
@@ -121,18 +139,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         self.status = "Cancelled — clipboard unchanged"
                         self.job = nil; self.refresh(); return
                     }
-                    NSPasteboard.general.clearContents()
-                    guard NSPasteboard.general.setString(result.text, forType: .string) else {
-                        self.status = "Text was extracted, but copying failed. Please capture again."
-                        self.job = nil; self.refresh()
-                        self.feedback.show(title: "Couldn’t copy text", detail: self.status, isError: true, screen: self.captureScreen)
-                        return
-                    }
-                    if UserDefaults.standard.object(forKey: "showCopyConfirmation") as? Bool ?? true {
-                        self.feedback.show(title: "Text copied to clipboard", detail: "\(result.text.count) characters · Ready to paste with ⌘V", screen: self.captureScreen)
-                    }
-                    self.status = "Copied \(result.text.count) characters • \(result.language) • score \(Int(result.confidence))%"
-                    self.job = nil; self.refresh()
+                    self.lastResult = result
+                    self.job = nil
+                    self.copyResult(formatted: false)
+
                 }
             } catch {
                 let message = (error is CancellationError || Task.isCancelled) ? "Cancelled — clipboard unchanged" : error.localizedDescription
@@ -145,6 +155,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         refresh()
+    }
+    func keyFor(_ mode: String) -> HotKey { mode == "formatted" ? formattedKey : mode == "plain" ? plainKey : hotKey }
+    func shortcutFor(_ mode: String) -> (UInt32, UInt32) {
+        if mode == "capture" { return (shortcutKey, shortcutModifiers) }
+        return (UserDefaults.standard.object(forKey: mode + "Key") as? UInt32 ?? UInt32(mode == "formatted" ? kVK_ANSI_C : kVK_ANSI_V), UserDefaults.standard.object(forKey: mode + "Modifiers") as? UInt32 ?? UInt32(cmdKey | controlKey | shiftKey))
+    }
+    func saveShortcut(_ mode: String, key: UInt32, modifiers: UInt32) -> Bool {
+        for other in ["capture", "formatted", "plain"] where other != mode {
+            let value = shortcutFor(other)
+            if value.0 == key && value.1 == modifiers { return false }
+        }
+        let old = shortcutFor(mode)
+        if old.0 == key && old.1 == modifiers { return true }
+        guard keyFor(mode).register(key: key, modifiers: modifiers) else { return false }
+        if mode == "capture" {
+            shortcutKey = key; shortcutModifiers = modifiers
+            UserDefaults.standard.set(key, forKey: "key"); UserDefaults.standard.set(modifiers, forKey: "modifiers")
+        } else {
+            UserDefaults.standard.set(key, forKey: mode + "Key"); UserDefaults.standard.set(modifiers, forKey: mode + "Modifiers")
+        }
+        return true
+    }
+    @objc func copyFormatted() { copyResult(formatted: true) }
+    @objc func copyPlain() { copyResult(formatted: false) }
+    func copyResult(formatted: Bool) {
+        guard job == nil else { NSSound.beep(); return }
+        guard let result = lastResult else { feedback.show(title: "Capture text first", detail: "Use your capture shortcut, then choose a copy mode."); return }
+        let item = NSPasteboardItem()
+        item.setString(result.text, forType: .string)
+        if formatted {
+            let rich = result.richText
+            guard let data = try? rich.data(from: NSRange(location: 0, length: rich.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) else { status = "Couldn’t create formatted text. Clipboard unchanged."; refresh(); return }
+            item.setData(data, forType: .rtf)
+        }
+        NSPasteboard.general.clearContents()
+        let copied = NSPasteboard.general.writeObjects([item])
+        status = copied ? "Copied \(formatted ? "formatted" : "plain") text · \(result.language)" : "Clipboard copy failed. Try again."
+        refresh()
+        if copied && (UserDefaults.standard.object(forKey: "showCopyConfirmation") as? Bool ?? true) {
+            feedback.show(title: "\(formatted ? "Formatted" : "Plain") text copied", detail: "\(result.text.count) characters · Paste with ⌘V", screen: captureScreen, formatted: { [weak self] in self?.copyFormatted() }, plain: { [weak self] in self?.copyPlain() })
+        } else if !copied { feedback.show(title: "Couldn’t copy text", detail: status, isError: true) }
+    }
+    @objc func languagesFolder() {
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MenuOCR/tessdata")
+        do { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true); NSWorkspace.shared.open(folder) }
+        catch { status = error.localizedDescription; refresh() }
     }
     @objc func cancel() { job?.cancel() }
     @objc func copyImage() {
@@ -179,14 +235,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func relaunch() {
         guard job == nil else { return }
-        hotKey.unregister()
+        hotKey.unregister(); formattedKey.unregister(); plainKey.unregister()
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
         let app = self
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, error in
             DispatchQueue.main.async {
                 if let error {
-                    _ = app.hotKey.register(key: app.shortcutKey, modifiers: app.shortcutModifiers)
+                    for mode in ["capture", "formatted", "plain"] {
+                        let value = app.shortcutFor(mode); _ = app.keyFor(mode).register(key: value.0, modifiers: value.1)
+                    }
                     app.feedback.show(title: "Couldn’t relaunch MenuOCR", detail: error.localizedDescription, isError: true)
                 } else { NSApp.terminate(nil) }
             }
@@ -247,6 +305,7 @@ struct Preferences: View {
     @State private var option: Bool
     @State private var control: Bool
     @State private var message = ""
+    @State private var mode = "capture"
     @AppStorage("showCopyConfirmation") private var showCopyConfirmation = true
     let keys: [(String, UInt32)] = [("A", 0), ("B", 11), ("C", 8), ("D", 2), ("E", 14), ("F", 3), ("G", 5), ("H", 4), ("I", 34), ("J", 38), ("K", 40), ("L", 37), ("M", 46), ("N", 45), ("O", 31), ("P", 35), ("Q", 12), ("R", 15), ("S", 1), ("T", 17), ("U", 32), ("V", 9), ("W", 13), ("X", 7), ("Y", 16), ("Z", 6)]
     init(delegate: AppDelegate) {
@@ -260,7 +319,13 @@ struct Preferences: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Global capture shortcut").font(.headline)
+            Text("Global shortcuts").font(.headline)
+            Picker("Action", selection: $mode) { Text("Capture text").tag("capture"); Text("Copy formatted result").tag("formatted"); Text("Copy plain result").tag("plain") }
+            .onChange(of: mode) { value in
+                let saved = delegate.shortcutFor(value); key = saved.0
+                command = saved.1 & UInt32(cmdKey) != 0; shift = saved.1 & UInt32(shiftKey) != 0
+                option = saved.1 & UInt32(optionKey) != 0; control = saved.1 & UInt32(controlKey) != 0
+            }
             HStack {
                 Toggle("⌘", isOn: $command).accessibilityLabel("Command"); Toggle("⇧", isOn: $shift).accessibilityLabel("Shift")
                 Toggle("⌥", isOn: $option).accessibilityLabel("Option"); Toggle("⌃", isOn: $control).accessibilityLabel("Control")
@@ -269,10 +334,7 @@ struct Preferences: View {
             Button("Save Shortcut") {
                 let modifiers = (command ? UInt32(cmdKey) : 0) | (shift ? UInt32(shiftKey) : 0) | (option ? UInt32(optionKey) : 0) | (control ? UInt32(controlKey) : 0)
                 guard command || option || control else { message = "Include Command, Option, or Control."; return }
-                if key == delegate.shortcutKey && modifiers == delegate.shortcutModifiers { message = "Shortcut already saved."; return }
-                guard delegate.hotKey.register(key: key, modifiers: modifiers) else { message = "Shortcut unavailable. Choose another combination."; return }
-                delegate.shortcutKey = key; delegate.shortcutModifiers = modifiers
-                UserDefaults.standard.set(key, forKey: "key"); UserDefaults.standard.set(modifiers, forKey: "modifiers")
+                guard delegate.saveShortcut(mode, key: key, modifiers: modifiers) else { message = "Shortcut unavailable or already used by another action."; return }
                 message = "Shortcut saved."; delegate.status = "Ready — shortcut updated"; delegate.refresh()
             }
             Text(message).foregroundStyle(.secondary)

@@ -9,7 +9,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Application publish failed.' }
 foreach ($file in @('MenuOCR.exe', 'tessdata/eng.traineddata', 'x64/tesseract50.dll', 'x64/leptonica-1.82.0.dll')) {
     if (!(Test-Path (Join-Path $app $file))) { throw "Missing runtime file: $file" }
 }
-Compress-Archive -Path "$app/*" -DestinationPath "$dist/MenuOCR-Windows-x64-1.0.0.zip" -Force
+Compress-Archive -Path "$app/*" -DestinationPath "$dist/MenuOCR-Windows-x64-1.1.0.zip" -Force
 if (!$SkipInstaller) {
     $redist = Join-Path $dist 'vc_redist.x64.exe'
     Invoke-WebRequest 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile $redist

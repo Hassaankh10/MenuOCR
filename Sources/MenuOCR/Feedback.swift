@@ -14,9 +14,11 @@ final class Feedback {
         panel = nil
     }
 
-    func show(title: String, detail: String, isError: Bool = false, screen: NSScreen? = nil) {
+    func show(title: String, detail: String, isError: Bool = false, screen: NSScreen? = nil, formatted: (() -> Void)? = nil, plain: (() -> Void)? = nil) {
         dismiss()
-        let content = FeedbackView(title: title, detail: detail, isError: isError)
+        let content = FeedbackView(title: title, detail: detail, isError: isError, formatted: formatted, plain: plain, hovering: { [weak self] inside in
+            if inside { self?.dismissal?.cancel() } else { self?.scheduleDismissal(seconds: 10) }
+        })
         let view = NSHostingView(rootView: content)
         let size = view.fittingSize
         let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
@@ -29,7 +31,7 @@ final class Feedback {
         panel.hidesOnDeactivate = false
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        panel.ignoresMouseEvents = true
+        panel.ignoresMouseEvents = formatted == nil && plain == nil
         panel.animationBehavior = .none
         let target = screen ?? NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
         if let frame = target?.visibleFrame {
@@ -42,7 +44,10 @@ final class Feedback {
             .announcement: "\(title). \(detail)",
             .priority: NSAccessibilityPriorityLevel.medium.rawValue
         ])
-        let seconds: UInt64 = isError || NSWorkspace.shared.isVoiceOverEnabled ? 10 : 4
+        scheduleDismissal(seconds: formatted != nil || isError || NSWorkspace.shared.isVoiceOverEnabled ? 10 : 4)
+    }
+    private func scheduleDismissal(seconds: UInt64) {
+        dismissal?.cancel()
         dismissal = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: seconds * 1_000_000_000) } catch { return }
             self?.dismiss()
@@ -54,6 +59,9 @@ struct FeedbackView: View {
     let title: String
     let detail: String
     let isError: Bool
+    var formatted: (() -> Void)? = nil
+    var plain: (() -> Void)? = nil
+    var hovering: (Bool) -> Void = { _ in }
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -66,6 +74,9 @@ struct FeedbackView: View {
                 Text(title).font(.headline)
                 Text(detail).font(.subheadline).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if let formatted, let plain {
+                    HStack { Button("Copy formatted", action: formatted); Button("Copy plain text", action: plain) }.buttonStyle(.bordered)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -79,6 +90,7 @@ struct FeedbackView: View {
             }
         }
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.12)))
-        .accessibilityElement(children: .combine)
+        .onHover(perform: hovering)
+        .accessibilityElement(children: formatted == nil ? .combine : .contain)
     }
 }

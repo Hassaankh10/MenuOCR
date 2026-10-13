@@ -10,6 +10,38 @@ final class OCRTests: XCTestCase {
         XCTAssertEqual(result.confidence, 90)
         XCTAssertEqual(OCRResult.parse("header", language: "eng").text, "")
     }
+    func testRichTextStructureAndRoundTrip() throws {
+        let result = OCRResult(layout: [OCRLine(text: "Title", paragraph: "1", left: 0, height: 40), OCRLine(text: "Hello {world} café 中文", paragraph: "2", left: 20, height: 20)], text: "Title\n\nHello {world} café 中文", confidence: 90, language: "eng")
+        let rich = result.richText
+        XCTAssertEqual(rich.string, result.text)
+        let data = try rich.data(from: NSRange(location: 0, length: rich.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+        let decoded = try NSAttributedString(data: data, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil)
+        XCTAssertEqual(decoded.string, result.text)
+        XCTAssertGreaterThan((rich.attribute(.paragraphStyle, at: rich.length - 1, effectiveRange: nil) as! NSParagraphStyle).headIndent, 0)
+    }
+    @MainActor func testClipboardModes() throws {
+        let clipboard = NSPasteboard.general
+        let old = clipboard.pasteboardItems?.map { item -> NSPasteboardItem in
+            let copy = NSPasteboardItem()
+            for type in item.types { if let data = item.data(forType: type) { copy.setData(data, forType: type) } }
+            return copy
+        } ?? []
+        defer { clipboard.clearContents(); if !old.isEmpty { clipboard.writeObjects(old) } }
+        let app = AppDelegate()
+        app.lastResult = OCRResult(text: "Hello café 中文", confidence: 90, language: "eng")
+        // Avoid UI side effects while checking the same clipboard writer used by the app.
+        let flag = UserDefaults.standard.object(forKey: "showCopyConfirmation")
+        UserDefaults.standard.set(false, forKey: "showCopyConfirmation")
+        defer { if let flag { UserDefaults.standard.set(flag, forKey: "showCopyConfirmation") } else { UserDefaults.standard.removeObject(forKey: "showCopyConfirmation") } }
+        app.item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(app.item) }
+        app.copyResult(formatted: true)
+        XCTAssertEqual(clipboard.string(forType: .string), "Hello café 中文")
+        XCTAssertNotNil(clipboard.data(forType: .rtf))
+        app.copyResult(formatted: false)
+        XCTAssertEqual(clipboard.string(forType: .string), "Hello café 中文")
+        XCTAssertNil(clipboard.data(forType: .rtf))
+    }
     func testFailureAndTimeout() {
         XCTAssertThrowsError(try Command.run("/usr/bin/false", []))
         XCTAssertThrowsError(try Command.run("/bin/sleep", ["5"], timeout: 0.1))

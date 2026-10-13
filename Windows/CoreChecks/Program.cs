@@ -19,3 +19,10 @@ try {
  bool rejected=false; try { AppSettings.Load(path); } catch (InvalidDataException) { rejected=true; }
  Check(rejected, "reject corrupt saved shortcut");
 } finally { if (Directory.Exists(dir)) Directory.Delete(dir,true); }
+
+var lines = new[] { new OcrLine("Title",1,0,40), new OcrLine("Hello {world} \\ café 中文",2,20,20) };
+Check(RichText.Plain(lines).StartsWith("Title\n\nHello"), "paragraph separation");
+var rtf = RichText.Rtf(lines, "");
+Check(rtf.Contains("\\fs48") && rtf.Contains("\\li240"), "relative sizes and indentation");
+Check(rtf.Contains("\\{world\\}") && rtf.Contains("\\u233?"), "RTF escapes literal braces and Unicode");
+Check(!new AppSettings { FormattedShortcut = Shortcut.Default }.ShortcutsValid, "reject duplicate action shortcuts");

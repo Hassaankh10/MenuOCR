@@ -1,7 +1,7 @@
 [Setup]
 AppId={{4FF3B7C4-67CF-4A8A-9D52-578D11DFF017}
 AppName=MenuOCR
-AppVersion=1.0.0
+AppVersion=1.1.0
 AppPublisher=Hassaankh10
 AppPublisherURL=https://github.com/Hassaankh10/MenuOCR
 DefaultDirName={localappdata}\Programs\MenuOCR
@@ -11,7 +11,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir=..\dist
-OutputBaseFilename=MenuOCR-Windows-x64-1.0.0-Setup
+OutputBaseFilename=MenuOCR-Windows-x64-1.1.0-Setup
 SetupIconFile=..\App\Assets\MenuOCR.ico
 UninstallDisplayIcon={app}\MenuOCR.exe
 Compression=lzma2

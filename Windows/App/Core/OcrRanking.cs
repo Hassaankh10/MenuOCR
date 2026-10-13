@@ -1,5 +1,9 @@
 namespace MenuOCR.Core;
-public sealed record OcrResult(string Text, string Language, double Confidence);
+public sealed record OcrResult(string Text, string Language, double Confidence)
+{
+    public IReadOnlyList<OcrLine> Lines { get; init; } = [];
+    public string Rtf => RichText.Rtf(Lines, Text);
+}
 public static class OcrRanking
 {
     public static double Score(IEnumerable<(string Text, float Confidence)> words)
