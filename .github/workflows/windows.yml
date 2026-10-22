@@ -1,9 +1,9 @@
 name: Windows
 on:
   push:
-    paths: ['Windows/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Tests/Fixtures/**', '.github/workflows/windows.yml']
   pull_request:
-    paths: ['Windows/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Tests/Fixtures/**', '.github/workflows/windows.yml']
   workflow_dispatch:
 permissions:
   contents: read

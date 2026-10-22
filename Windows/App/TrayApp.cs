@@ -15,7 +15,7 @@ internal sealed class TrayApp : ApplicationContext
     private readonly NotifyIcon tray;
     private readonly ContextMenuStrip menu = new();
     private readonly ToolStripMenuItem statusItem = new("Ready — capture a text region") { Enabled = false };
-    private readonly ToolStripMenuItem captureItem = new("Capture Text");
+    private readonly ToolStripMenuItem captureItem = new("Capture Text or QR Code");
     private readonly ToolStripMenuItem cancelItem = new("Cancel");
     private readonly ToolStripMenuItem imageItem = new("Copy Last Screenshot");
     private readonly ToolStripMenuItem settingsItem = new("Settings…");
@@ -127,9 +127,9 @@ internal sealed class TrayApp : ApplicationContext
                 catch (ExternalException) { await Task.Delay(100,token); }
             }
             if (!copied) throw new InvalidOperationException("Clipboard is busy. Use a copy action to retry.");
-            SetStatus($"Copied {(formatted ? "formatted" : "plain")} text · {result.Language}");
+            SetStatus(result.QrCodeCount > 0 ? $"Copied QR content · {result.QrCodeCount} code(s)" : $"Copied {(formatted ? "formatted" : "plain")} text · {result.Language}");
             if (Settings.ShowCopyConfirmation) {
-                toast?.Close(); toast = new ToastForm($"{(formatted ? "Formatted" : "Plain")} text copied", $"{result.Text.Length} characters · Paste with Ctrl + V", false, screen ?? Screen.FromPoint(Cursor.Position), async () => await CopyResultAsync(true), async () => await CopyResultAsync(false)); toast.Show();
+                toast?.Close(); toast = new ToastForm(result.QrCodeCount > 0 ? "QR content copied" : $"{(formatted ? "Formatted" : "Plain")} text copied", $"{result.Text.Length} characters · Paste with Ctrl + V", false, screen ?? Screen.FromPoint(Cursor.Position), async () => await CopyResultAsync(true), async () => await CopyResultAsync(false)); toast.Show();
             }
         } catch (OperationCanceledException) { throw; }
         catch (Exception error) { SetStatus(error.Message); ShowToast("Couldn’t copy text", "Use the tray menu to retry.",true,screen); }

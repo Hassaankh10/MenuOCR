@@ -14,7 +14,7 @@ struct OnboardingView: View {
     private let ink = Color(red: 0.15, green: 0.12, blue: 0.25)
     private let purple = Color(red: 0.34, green: 0.24, blue: 0.70)
     private let headings = ["Any text.\nYours to keep.", "A little setup.\nAll on your Mac.", "Meet your new\nmuscle memory.", "A little shortcut.\nA lot less typing."]
-    private let subtitles = ["From a screenshot to your clipboard.\nCapture the words. Keep your flow.", "Two quick checks before your first capture.\nYour screenshots never leave this Mac for OCR.", "Press your shortcut, draw a box, and paste.\nMenuOCR takes care of the rest.", "You'll find us in your menu bar.\nReady whenever the right words aren't selectable."]
+    private let subtitles = ["From a screenshot to your clipboard.\nCapture words or QR codes. Keep your flow.", "Two quick checks before your first capture.\nYour screenshots never leave this Mac for OCR.", "Press your shortcut, draw a box, and paste.\nMenuOCR takes care of the rest.", "You'll find us in your menu bar.\nReady whenever the right words aren't selectable."]
 
     init(delegate: AppDelegate, initialStep: Int = 0) {
         self.delegate = delegate

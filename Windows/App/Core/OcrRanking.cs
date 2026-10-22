@@ -1,6 +1,7 @@
 namespace MenuOCR.Core;
 public sealed record OcrResult(string Text, string Language, double Confidence)
 {
+    public int QrCodeCount { get; init; }
     public IReadOnlyList<OcrLine> Lines { get; init; } = [];
     public string Rtf => RichText.Rtf(Lines, Text);
 }

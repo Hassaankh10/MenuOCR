@@ -20,6 +20,10 @@ public sealed class OcrService(params string[] dataDirectories)
     }
     public OcrResult Recognize(byte[] png, CancellationToken cancellation, Action<string> progress)
     {
+        cancellation.ThrowIfCancellationRequested();
+        progress("Checking for QR codes…");
+        var qr = QrDetection.Recognize(png, cancellation);
+        if (qr != null) return qr;
         var models = Models();
         if (models.Count == 0) throw new InvalidOperationException("No OCR languages found. Reinstall MenuOCR or add .traineddata files to the languages folder.");
         var results = new List<OcrResult>();

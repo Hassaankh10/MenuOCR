@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Vision
 
 struct AppError: LocalizedError {
     let message: String
@@ -54,6 +55,7 @@ struct OCRLine {
 }
 
 struct OCRResult {
+    var qrCodeCount = 0
     var layout: [OCRLine] = []
     var richText: NSAttributedString {
         let output = NSMutableAttributedString(string: "")
@@ -105,11 +107,34 @@ struct OCRResult {
     }
 }
 
+struct QRDetection {
+    static func recognize(_ image: URL) throws -> OCRResult? {
+        try Task<Never, Never>.checkCancellation()
+        let request = VNDetectBarcodesRequest()
+        request.symbologies = [.qr]
+        try VNImageRequestHandler(url: image, options: [:]).perform([request])
+        try Task<Never, Never>.checkCancellation()
+        let codes = (request.results ?? []).sorted {
+            let rowA = Int(($0.boundingBox.midY * 50).rounded()), rowB = Int(($1.boundingBox.midY * 50).rounded())
+            if rowA != rowB { return rowA > rowB }
+            return $0.boundingBox.minX < $1.boundingBox.minX
+        }
+        var seen = Set<String>(), payloads: [String] = []
+        for code in codes {
+            if let value = code.payloadStringValue, !value.isEmpty, seen.insert(value).inserted { payloads.append(value) }
+        }
+        guard !payloads.isEmpty else { return nil }
+        return OCRResult(qrCodeCount: payloads.count, text: payloads.joined(separator: "\n"), confidence: 100, language: "")
+    }
+}
+
 struct OCR {
     static var executable: String? {
         [Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/OCR/bin/tesseract").path, "/opt/homebrew/bin/tesseract", "/usr/local/bin/tesseract"].first { FileManager.default.isExecutableFile(atPath: $0) }
     }
     static func recognize(_ image: URL, progress: @escaping (String) -> Void) throws -> OCRResult {
+        progress("Checking for QR codes…")
+        if let result = try QRDetection.recognize(image) { return result }
         guard let executable else { throw AppError(message: "Tesseract is missing. Install it with: brew install tesseract tesseract-lang") }
         let user = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MenuOCR/tessdata").path
         let directories = [Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/OCR/share/tessdata").path, "/opt/homebrew/share/tessdata", "/usr/local/share/tessdata", user]

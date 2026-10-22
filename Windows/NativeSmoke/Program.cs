@@ -48,3 +48,12 @@ var thread = new Thread(() => {
 });
 thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join();
 if (uiError != null) throw uiError;
+
+var fixtureRoot = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!, "../../Tests/Fixtures");
+foreach (var (name, expected, count) in new[] { ("qr-url", "https://example.com/menuocr?x=1&y=2", 1), ("qr-unicode", "MenuOCR café 中文", 1), ("qr-rotated", "https://example.com/rotated", 1), ("qr-multiple", "https://example.com/first\nhttps://example.com/second", 2), ("qr-duplicate", "https://example.com/first", 1) }) {
+    // No language models: a QR capture must succeed independently of Tesseract.
+    var qr = new OcrService().Recognize(File.ReadAllBytes(Path.Combine(fixtureRoot,name+".png")),CancellationToken.None,_ => {});
+    if (qr.Text != expected || qr.QrCodeCount != count) throw new Exception("QR fixture failed: " + name + " => " + qr.Text);
+}
+if (QrDetection.Recognize(File.ReadAllBytes(Path.Combine(fixtureRoot,"qr-blank.png")),CancellationToken.None) != null) throw new Exception("Blank image yielded QR data.");
+Console.WriteLine("PASS QR URLs, Unicode, rotation, multiple codes, deduplication and no-code fallback");

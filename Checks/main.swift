@@ -38,3 +38,12 @@ if CommandLine.arguments.count == 3 {
     print("PASS: bundled engine recognition with explicit bundled data")
 }
 print("PASS: rich/plain text equivalence, Unicode RTF round-trip and indentation")
+
+let fixtureDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("Tests/Fixtures")
+for (name, expected, count) in [("qr-url", "https://example.com/menuocr?x=1&y=2", 1), ("qr-unicode", "MenuOCR café 中文", 1), ("qr-rotated", "https://example.com/rotated", 1), ("qr-multiple", "https://example.com/first\nhttps://example.com/second", 2), ("qr-duplicate", "https://example.com/first", 1)] {
+    let result = try OCR.recognize(fixtureDirectory.appendingPathComponent(name + ".png")) { _ in }
+    check(result.text == expected && result.qrCodeCount == count, "QR fixture \(name): \(result.text)")
+}
+let blankQR = try QRDetection.recognize(fixtureDirectory.appendingPathComponent("qr-blank.png"))
+check(blankQR == nil, "Blank image must not produce QR data")
+print("PASS: QR URLs, Unicode, rotation, multiple codes, deduplication and no-code fallback")

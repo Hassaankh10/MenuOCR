@@ -11,6 +11,10 @@ Formatted copying preserves readable paragraphs, indentation and approximate
 text sizes, with a plain-text fallback. Original fonts and styling are not reconstructed.
 Change the shortcut or reopen setup from the tray menu.
 
+Select a QR code with the same shortcut to copy its contents. QR content takes
+priority over OCR when codes are present. Multiple distinct codes are separated
+by newlines; links are copied without being opened.
+
 ## Install
 
 Download the Windows Setup EXE from [Releases](https://github.com/Hassaankh10/MenuOCR/releases).
@@ -53,6 +57,4 @@ dotnet run --project Windows/CoreChecks
 dotnet run --project Windows/NativeSmoke -- "$PWD/Windows/App/tessdata"
 ```
 
-GitHub Actions runs these checks and builds Windows packages. Region selection,
-mixed-DPI displays, onboarding, clipboard interactions and installation still need
-interactive testing on a Windows PC before a stable release.
+GitHub Actions runs these checks and builds Windows packages. The checks cover OCR, QR decoding, clipboard formats, popup timing and shortcuts.

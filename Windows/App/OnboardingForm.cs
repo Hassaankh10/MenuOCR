@@ -39,7 +39,7 @@ internal sealed class OnboardingForm : Form
         next.Text = step == 0 ? "Let's begin" : step == 3 ? "Finish setup" : "Continue";
         if (step == 0) {
             heading.Text = "Any text. Yours to keep.";
-            subtitle.Text = "From a screenshot to your clipboard. Capture the words. Keep your flow.";
+            subtitle.Text = "From a screenshot to your clipboard. Capture words or QR codes. Keep your flow.";
             content.Controls.Add(new PictureBox { Image = Icon!.ToBitmap(), Size = new Size(94, 94), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent });
             content.Controls.Add(Theme.Label("No account. No cloud OCR.\nMenuOCR lives in your system tray after setup.", 650));
         } else if (step == 1) {

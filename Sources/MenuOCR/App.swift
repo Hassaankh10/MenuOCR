@@ -90,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.autoenablesItems = false
         let label = NSMenuItem(title: status, action: nil, keyEquivalent: "")
         label.isEnabled = false; menu.addItem(label)
-        add(menu, "Capture Text", #selector(capture), enabled: job == nil)
+        add(menu, "Capture Text or QR Code", #selector(capture), enabled: job == nil)
         add(menu, "Copy Formatted Text", #selector(copyFormatted), enabled: lastResult != nil && job == nil)
         add(menu, "Copy Plain Text", #selector(copyPlain), enabled: lastResult != nil && job == nil)
         add(menu, "Languages Folder…", #selector(languagesFolder))
@@ -191,10 +191,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         NSPasteboard.general.clearContents()
         let copied = NSPasteboard.general.writeObjects([item])
-        status = copied ? "Copied \(formatted ? "formatted" : "plain") text · \(result.language)" : "Clipboard copy failed. Try again."
+        status = copied ? (result.qrCodeCount > 0 ? "Copied QR content · \(result.qrCodeCount) code(s)" : "Copied \(formatted ? "formatted" : "plain") text · \(result.language)") : "Clipboard copy failed. Try again."
         refresh()
         if copied && (UserDefaults.standard.object(forKey: "showCopyConfirmation") as? Bool ?? true) {
-            feedback.show(title: "\(formatted ? "Formatted" : "Plain") text copied", detail: "\(result.text.count) characters · Paste with ⌘V", screen: captureScreen, formatted: { [weak self] in self?.copyFormatted() }, plain: { [weak self] in self?.copyPlain() })
+            feedback.show(title: result.qrCodeCount > 0 ? "QR content copied" : "\(formatted ? "Formatted" : "Plain") text copied", detail: "\(result.text.count) characters · Paste with ⌘V", screen: captureScreen, formatted: { [weak self] in self?.copyFormatted() }, plain: { [weak self] in self?.copyPlain() })
         } else if !copied { feedback.show(title: "Couldn’t copy text", detail: status, isError: true) }
     }
     @objc func languagesFolder() {

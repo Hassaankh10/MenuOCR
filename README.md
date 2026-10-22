@@ -10,6 +10,7 @@ MenuOCR reads screenshots with local Tesseract OCR. It stays in your Mac’s men
 
 ## Features
 
+- **Scan QR codes.** Use the same capture shortcut to select a QR code and copy its contents locally. QR content takes priority when a selection contains both text and codes. Multiple distinct codes are copied in reading order, separated by newlines. Links are never opened automatically.
 - **Capture text.** Press a shortcut and draw a box. Recognized text goes straight to your clipboard.
 - **Choose how to copy.** The confirmation offers formatted or plain text. You can also re-copy the last result from the menu or a shortcut.
 - **Readable formatting.** Keep paragraphs, indentation and approximate text sizes. Original fonts, bold, italic and colors aren’t reconstructed.
@@ -39,7 +40,7 @@ Requires Apple Silicon and macOS 13 or newer.
 
 Download the Windows Setup EXE from [Releases](https://github.com/Hassaankh10/MenuOCR/releases), or extract the portable ZIP and open `MenuOCR.exe`.
 
-The installer includes Tesseract, English data and .NET, and installs the Microsoft Visual C++ x64 runtime if needed. Builds are unsigned and currently previews. Requires Windows 10/11 x64. See [Windows instructions](Windows/README.md).
+The installer includes Tesseract, English data and .NET, and installs the Microsoft Visual C++ x64 runtime if needed. Builds are unsigned. Requires Windows 10/11 x64. See [Windows instructions](Windows/README.md).
 
 ## Shortcuts
 

@@ -10,10 +10,11 @@
     <ApplicationIcon>Assets\MenuOCR.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>MenuOCR</AssemblyName>
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
     <Company>Hassaankh10</Company>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
     <Content Include="Licenses/*.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="Assets\MenuOCR.ico" LogicalName="MenuOCR.Icon" />
