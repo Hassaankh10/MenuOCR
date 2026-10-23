@@ -8,6 +8,12 @@ Select text on your screen. Copy it. Get back to what you were doing.
 
 MenuOCR reads screenshots with local Tesseract OCR. It stays in your Mac’s menu bar or Windows system tray, ready when the words on screen aren’t selectable.
 
+## Demo
+
+[![Watch MenuOCR capture and copy text](docs/demo-preview.png)](https://github.com/Hassaankh10/MenuOCR/blob/main/docs/MenuOCR-showcase.mp4)
+
+[Watch the 10-second demo](https://github.com/Hassaankh10/MenuOCR/blob/main/docs/MenuOCR-showcase.mp4): select a region, see the clipboard confirmation, then paste.
+
 ## Features
 
 - **Scan QR codes.** Use the same capture shortcut to select a QR code and copy its contents locally. QR content takes priority when a selection contains both text and codes. Multiple distinct codes are copied in reading order, separated by newlines. Links are never opened automatically.
